@@ -27,7 +27,7 @@ export default function Navbar() {
           {/* Logo and Brand */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">TryoutPro</span>
+              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">TryXpert</span>
             </Link>
           </div>
 
