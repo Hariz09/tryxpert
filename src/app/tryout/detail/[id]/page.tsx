@@ -1,7 +1,9 @@
-// File: app/tryout/detail/[id]/page.tsx
-import { Suspense } from 'react';
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -78,52 +80,18 @@ type Tryout = Database['public']['Tables']['tryouts']['Row'] & {
   features?: string[];
 };
 
-// Function to fetch tryout details
-async function getTryoutDetails(id: number): Promise<Tryout | null> {
-  const { data, error } = await supabase
-    .from('tryouts')
-    .select('*')
-    .eq('id', id)
-    .single();
-  
-  if (error) {
-    console.error('Error fetching tryout:', error);
-    return null;
-  }
-  
-  // Parse JSON fields if they exist
-  const tryout = data as Tryout;
-  
-  // Parse JSON fields if they're stored as strings
-  if (typeof tryout.syllabus === 'string') {
-    try {
-      tryout.syllabus = JSON.parse(tryout.syllabus);
-    } catch (e) {
-      tryout.syllabus = [];
-    }
-  }
-  
-  if (typeof tryout.features === 'string') {
-    try {
-      tryout.features = JSON.parse(tryout.features);
-    } catch (e) {
-      tryout.features = [];
-    }
-  }
-  
-  return tryout;
-}
-
 // TryoutInfo component
-const TryoutInfo = async ({ id }: { id: number }) => {
-  const tryout = await getTryoutDetails(id);
+const TryoutInfo = ({ tryout, isLoading }: { tryout: Tryout | null, isLoading: boolean }) => {
+  if (isLoading) {
+    return <TryoutInfoSkeleton />;
+  }
   
   if (!tryout) {
     return (
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Tryout Tidak Ditemukan</CardTitle>
-          <CardDescription>Maaf, tryout dengan ID {id} tidak ditemukan</CardDescription>
+          <CardDescription>Maaf, tryout tidak ditemukan</CardDescription>
         </CardHeader>
         <CardContent>
           <Link href="/">
@@ -174,8 +142,10 @@ const TryoutInfo = async ({ id }: { id: number }) => {
 };
 
 // TryoutContent component
-const TryoutContent = async ({ id }: { id: number }) => {
-  const tryout = await getTryoutDetails(id);
+const TryoutContent = ({ tryout, isLoading }: { tryout: Tryout | null, isLoading: boolean }) => {
+  if (isLoading) {
+    return <TryoutContentSkeleton />;
+  }
   
   if (!tryout) {
     return null;
@@ -258,7 +228,7 @@ const TryoutContent = async ({ id }: { id: number }) => {
                 Bagaimana cara mengerjakan tryout ini?
               </h4>
               <p className="ml-6 text-gray-700 mt-1">
-                Klik tombol "Mulai Tryout" dan ikuti instruksi yang diberikan. Kamu akan diberi waktu sesuai dengan durasi yang telah ditentukan.
+                Klik tombol &quot;Mulai Tryout&quot; dan ikuti instruksi yang diberikan. Kamu akan diberi waktu sesuai dengan durasi yang telah ditentukan.
               </p>
             </div>
             <div>
@@ -286,9 +256,71 @@ const TryoutContent = async ({ id }: { id: number }) => {
   );
 };
 
-// Main page component
-export default function TryoutDetailPage({ params }: { params: { id: string } }) {
-  const tryoutId = parseInt(params.id);
+// Function to fetch tryout details
+async function getTryoutDetails(id: number): Promise<Tryout | null> {
+  const { data, error } = await supabase
+    .from('tryouts')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) {
+    console.error('Error fetching tryout:', error);
+    return null;
+  }
+  
+  // Parse JSON fields if they exist
+  const tryout = data as Tryout;
+  
+  // Parse JSON fields if they're stored as strings
+  if (typeof tryout.syllabus === 'string') {
+    try {
+      tryout.syllabus = JSON.parse(tryout.syllabus);
+    } catch (e) {
+      tryout.syllabus = [];
+      console.log(e);
+    }
+  }
+  
+  if (typeof tryout.features === 'string') {
+    try {
+      tryout.features = JSON.parse(tryout.features);
+    } catch (e) {
+      tryout.features = [];
+      console.log(e);
+    }
+  }
+  
+  return tryout;
+}
+
+// Main page component using useParams
+export default function TryoutDetailPage() {
+  const params = useParams();
+  const [tryout, setTryout] = useState<Tryout | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadTryout() {
+      setIsLoading(true);
+      try {
+        // Ensure id is a string and parse it to a number
+        const id = typeof params.id === 'string' ? parseInt(params.id) : 
+                  Array.isArray(params.id) ? parseInt(params.id[0]) : 0;
+        
+        if (id) {
+          const data = await getTryoutDetails(id);
+          setTryout(data);
+        }
+      } catch (error) {
+        console.error('Failed to load tryout:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadTryout();
+  }, [params.id]);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -301,18 +333,14 @@ export default function TryoutDetailPage({ params }: { params: { id: string } })
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content with Suspense */}
+          {/* Main Content */}
           <div className="lg:col-span-2">
-            <Suspense fallback={<TryoutContentSkeleton />}>
-              <TryoutContent id={tryoutId} />
-            </Suspense>
+            <TryoutContent tryout={tryout} isLoading={isLoading} />
           </div>
 
-          {/* Sidebar with Suspense */}
+          {/* Sidebar */}
           <div>
-            <Suspense fallback={<TryoutInfoSkeleton />}>
-              <TryoutInfo id={tryoutId} />
-            </Suspense>
+            <TryoutInfo tryout={tryout} isLoading={isLoading} />
           </div>
         </div>
       </main>
