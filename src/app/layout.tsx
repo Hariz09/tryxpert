@@ -1,20 +1,14 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+// File: app/layout.tsx
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import { Toaster } from 'react-hot-toast';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "TryXpert",
-  description: "TryXper platform tryout interaktif untuk meningkatkan keterampilan dan mencapai keahlian.",
+  title: 'TryXpert - Platform Tryout Online',
+  description: 'Platform tryout online terpercaya untuk persiapan ujian nasional, SBMPTN, dan berbagai ujian lainnya.',
   icons: {
     icon: "/TX.png",
   }
@@ -22,15 +16,51 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="id" suppressHydrationWarning>
+      <head>
+        {/* Dark mode script - run before page renders to prevent flash */}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              // Check for saved theme preference or use system preference
+              const savedTheme = localStorage.getItem('theme');
+              const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+              
+              if (savedTheme === 'dark' || (savedTheme === null && systemTheme === 'dark')) {
+                document.documentElement.classList.add('dark');
+              } else {
+                document.documentElement.classList.remove('dark');
+              }
+            })();
+          `
+        }} />
+      </head>
+      <body className={inter.className}>
         {children}
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            // Default options for specific types
+            success: {
+              duration: 3000,
+              style: {
+                background: '#10B981',
+                color: '#fff',
+              },
+            },
+            error: {
+              duration: 4000,
+              style: {
+                background: '#EF4444',
+                color: '#fff',
+              },
+            },
+          }}
+        />
       </body>
     </html>
   );

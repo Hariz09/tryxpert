@@ -1,16 +1,9 @@
 // File: components/Navbar.tsx
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { 
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from '@/components/ui/navigation-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bell, Menu } from 'lucide-react';
+import { Bell, Menu, Sun, Moon } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -20,8 +13,38 @@ import {
 } from "@/components/ui/sheet";
 
 export default function Navbar() {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  
+  // Initialize theme from localStorage and system preference
+  useEffect(() => {
+    // Check for saved theme preference or use system preference
+    const savedTheme = localStorage.getItem('theme');
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    
+    if (savedTheme === 'dark' || (savedTheme === null && systemTheme === 'dark')) {
+      setTheme('dark');
+      document.documentElement.classList.add('dark');
+    } else {
+      setTheme('light');
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+  
+  // Toggle theme function
+  const toggleTheme = () => {
+    if (theme === 'light') {
+      setTheme('dark');
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      setTheme('light');
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
   return (
-    <header className="border-b bg-white">
+    <header className="border-b bg-background text-foreground">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo and Brand */}
@@ -31,49 +54,22 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6">
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <Link href="/" legacyBehavior passHref>
-                    <NavigationMenuLink className="px-4 py-2 hover:text-blue-600 font-medium">
-                      Beranda
-                    </NavigationMenuLink>
-                  </Link>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger>Mata Pelajaran</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="grid grid-cols-2 gap-3 p-4 w-96">
-                      {['Matematika', 'Bahasa Indonesia', 'Bahasa Inggris', 'IPA', 'IPS', 'Fisika', 'Kimia', 'Biologi'].map((subject) => (
-                        <Link key={subject} href={`/subject/${subject.toLowerCase().replace(/\s+/g, '-')}`} className="p-2 hover:bg-gray-100 rounded-md">
-                          {subject}
-                        </Link>
-                      ))}
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <Link href="/ranking" legacyBehavior passHref>
-                    <NavigationMenuLink className="px-4 py-2 hover:text-blue-600 font-medium">
-                      Peringkat
-                    </NavigationMenuLink>
-                  </Link>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <Link href="/about" legacyBehavior passHref>
-                    <NavigationMenuLink className="px-4 py-2 hover:text-blue-600 font-medium">
-                      Tentang Kami
-                    </NavigationMenuLink>
-                  </Link>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
-          </div>
-
           {/* User Actions */}
           <div className="flex items-center space-x-4">
+            {/* Dark Mode Toggle */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleTheme}
+              aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            >
+              {theme === 'light' ? (
+                <Moon className="h-5 w-5" />
+              ) : (
+                <Sun className="h-5 w-5" />
+              )}
+            </Button>
+
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
               <span className="absolute -top-1 -right-1 h-4 w-4 text-xs bg-red-500 text-white rounded-full flex items-center justify-center">
@@ -99,24 +95,28 @@ export default function Navbar() {
                     <SheetTitle>Menu</SheetTitle>
                   </SheetHeader>
                   <div className="py-4 flex flex-col space-y-4">
-                    <Link href="/" className="px-2 py-2 hover:bg-gray-100 rounded-md">
-                      Beranda
-                    </Link>
-                    <Link href="/subjects" className="px-2 py-2 hover:bg-gray-100 rounded-md">
-                      Mata Pelajaran
-                    </Link>
-                    <Link href="/ranking" className="px-2 py-2 hover:bg-gray-100 rounded-md">
-                      Peringkat
-                    </Link>
-                    <Link href="/about" className="px-2 py-2 hover:bg-gray-100 rounded-md">
-                      Tentang Kami
-                    </Link>
-                    <Link href="/profile" className="px-2 py-2 hover:bg-gray-100 rounded-md">
+                    <Link href="/profile" className="px-2 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
                       Profil Saya
                     </Link>
-                    <Link href="/settings" className="px-2 py-2 hover:bg-gray-100 rounded-md">
+                    <Link href="/settings" className="px-2 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
                       Pengaturan
                     </Link>
+                    {/* Dark mode toggle in mobile menu */}
+                    <div className="flex items-center justify-between px-2 py-2">
+                      <span>Mode Gelap</span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={toggleTheme}
+                        aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                      >
+                        {theme === 'light' ? (
+                          <Moon className="h-5 w-5" />
+                        ) : (
+                          <Sun className="h-5 w-5" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </SheetContent>
               </Sheet>
