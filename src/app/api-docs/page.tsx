@@ -101,7 +101,7 @@ const ApiDocsPage = () => {
                 }}
                 // Custom plugin to remove authorization UI elements
                 plugins={[
-                  (system) => ({
+                  () => ({
                     components: {
                       authorizeBtn: () => null,
                       authorizeOperationBtn: () => null

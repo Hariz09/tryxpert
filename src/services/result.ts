@@ -1,5 +1,5 @@
 import { supabase } from "@/utils/supabase/client";
-import { TryoutResults, UserAnswer, Question, Tryout } from "@/types/result";
+import { TryoutResults, UserAnswer, Question } from "@/types/result";
 
 export async function fetchTryoutResults(id: number) {
   try {

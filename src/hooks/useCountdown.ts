@@ -33,7 +33,6 @@ export function useCountdown(startDate: string, endDate: string): UseCountdownRe
 
   useEffect(() => {
     const calculateTime = () => {
-      const now = new Date();
       const start = new Date(startDate);
       const end = new Date(endDate);
       

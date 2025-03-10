@@ -138,7 +138,7 @@ const StartTryout: React.FC<StartTryoutProps> = ({ tryout }) => {
           <DialogHeader>
             <DialogTitle>Mulai Tryout</DialogTitle>
             <DialogDescription>
-              Anda akan memulai tryout "{tryout.title}". Pastikan Anda memiliki waktu yang cukup untuk menyelesaikannya.
+              Anda akan memulai tryout &quot;{tryout.title}&quot;. Pastikan Anda memiliki waktu yang cukup untuk menyelesaikannya.
             </DialogDescription>
           </DialogHeader>
 

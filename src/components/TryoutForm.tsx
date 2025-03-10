@@ -74,31 +74,6 @@ export default function TryoutForm({ defaultValues, onSubmit, isEdit = false }: 
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("10:00");
 
-  // Parse date from default values if they exist and are string format
-  const parseDefaultDate = (dateString: any): Date | undefined => {
-    if (!dateString) return undefined;
-    
-    // If it's already a Date object, return it
-    if (dateString instanceof Date) return dateString;
-    
-    // If it's a string in format like "2025-02-28 20:53:59.79", parse it
-    if (typeof dateString === 'string') {
-      try {
-        const date = new Date(dateString);
-        if (!isNaN(date.getTime())) {
-          // Extract time for the time input
-          if (dateString.includes(' ')) {
-            const timePart = dateString.split(' ')[1].slice(0, 5); // Get HH:MM
-            return date;
-          }
-        }
-      } catch (e) {
-        console.error("Error parsing date:", e);
-      }
-    }
-    
-    return undefined;
-  };
 
   // Initialize form with React Hook Form and Zod resolver
   const form = useForm<TryoutFormValues>({
