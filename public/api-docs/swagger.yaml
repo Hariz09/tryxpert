@@ -1,0 +1,902 @@
+openapi: 3.0.0
+info:
+  title: TryXpert API
+  description: API documentation for TryXpert - An online exam/tryout application
+  version: 1.0.0
+  contact:
+    name: TryXpert Support
+    email: support@tryxpert.com
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+
+tags:
+  - name: Tryouts
+    description: Operations related to tryouts management
+  - name: Questions
+    description: Operations related to questions management
+  - name: Session
+    description: Operations related to tryout sessions and submissions
+  - name: Results
+    description: Operations related to tryout results
+
+paths:
+  /tryouts:
+    get:
+      summary: Get all tryouts
+      description: Retrieve a list of all available tryouts
+      tags:
+        - Tryouts
+      parameters:
+        - name: subject
+          in: query
+          schema:
+            type: string
+          description: Filter tryouts by subject
+        - name: difficulty
+          in: query
+          schema:
+            type: string
+            enum: [Mudah, Menengah, Sulit]
+          description: Filter tryouts by difficulty level
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [notStarted, inProgress, ended]
+          description: Filter tryouts by status
+      responses:
+        '200':
+          description: A list of tryouts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tryouts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tryout'
+                  error:
+                    type: object
+                    nullable: true
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Create a new tryout
+      description: Add a new tryout to the system
+      tags:
+        - Tryouts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TryoutFormValues'
+      responses:
+        '201':
+          description: Tryout created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: ID of the created tryout
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tryouts/{id}:
+    get:
+      summary: Get tryout details
+      description: Retrieve detailed information about a specific tryout
+      tags:
+        - Tryouts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the tryout to retrieve
+      responses:
+        '200':
+          description: Detailed tryout information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tryout'
+        '404':
+          description: Tryout not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update a tryout
+      description: Update an existing tryout's information
+      tags:
+        - Tryouts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the tryout to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TryoutFormValues'
+      responses:
+        '200':
+          description: Tryout updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: ID of the updated tryout
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tryout not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a tryout
+      description: Delete an existing tryout from the system
+      tags:
+        - Tryouts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the tryout to delete
+      responses:
+        '200':
+          description: Tryout deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Indicates if the deletion was successful
+        '404':
+          description: Tryout not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tryouts/{id}/questions:
+    get:
+      summary: Get all questions for a tryout
+      description: Retrieve all questions for a specific tryout
+      tags:
+        - Questions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the tryout
+      responses:
+        '200':
+          description: A list of questions for the tryout
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Question'
+        '404':
+          description: Tryout not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Add a question to a tryout
+      description: Add a new question to a specific tryout
+      tags:
+        - Questions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the tryout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionFormValues'
+      responses:
+        '201':
+          description: Question added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Question'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tryout not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /questions/{id}:
+    put:
+      summary: Update a question
+      description: Update an existing question
+      tags:
+        - Questions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the question to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionFormValues'
+      responses:
+        '200':
+          description: Question updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Question'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Question not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a question
+      description: Delete an existing question
+      tags:
+        - Questions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the question to delete
+      responses:
+        '200':
+          description: Question deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Indicates if the deletion was successful
+        '404':
+          description: Question not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /questions/{id}/order:
+    put:
+      summary: Update question order
+      description: Update the order of a question within a tryout
+      tags:
+        - Questions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                order_number:
+                  type: integer
+                  description: New order number for the question
+              required:
+                - order_number
+      responses:
+        '200':
+          description: Question order updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Indicates if the update was successful
+        '404':
+          description: Question not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tryouts/{id}/session:
+    get:
+      summary: Get tryout session
+      description: Retrieve a tryout with its questions for a session
+      tags:
+        - Session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the tryout
+      responses:
+        '200':
+          description: Tryout with questions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TryoutWithQuestions'
+        '404':
+          description: Tryout not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /submissions:
+    post:
+      summary: Submit tryout answers
+      description: Submit answers for a completed tryout
+      tags:
+        - Session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TryoutSubmission'
+      responses:
+        '201':
+          description: Submission successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Indicates if the submission was successful
+                  submission_id:
+                    type: integer
+                    description: ID of the created submission
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /tryouts/{id}/results:
+    get:
+      summary: Get tryout results
+      description: Retrieve results for a completed tryout
+      tags:
+        - Results
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the tryout
+      responses:
+        '200':
+          description: Tryout results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tryoutResults:
+                    $ref: '#/components/schemas/TryoutResults'
+                  questionsData:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Question'
+                  errorMessage:
+                    type: string
+                    nullable: true
+        '404':
+          description: Tryout or results not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Tryout:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the tryout
+        title:
+          type: string
+          description: Title of the tryout
+        subject:
+          type: string
+          description: Subject of the tryout
+        start_date:
+          type: string
+          format: date-time
+          description: Start date and time of the tryout
+        end_date:
+          type: string
+          format: date-time
+          description: End date and time of the tryout
+        duration:
+          type: integer
+          description: Duration of the tryout in minutes, -1 for unlimited
+        difficulty:
+          type: string
+          enum: [Mudah, Menengah, Sulit]
+          description: Difficulty level of the tryout
+        participants:
+          type: integer
+          description: Number of participants
+        syllabus:
+          type: array
+          items:
+            type: string
+          description: List of topics covered in the tryout
+        features:
+          type: array
+          items:
+            type: string
+          description: List of features of the tryout
+        description:
+          type: string
+          nullable: true
+          description: Description of the tryout
+        image_url:
+          type: string
+          nullable: true
+          description: URL of the tryout image
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Creation date of the tryout
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last update date of the tryout
+        total_questions:
+          type: integer
+          nullable: true
+          description: Total number of questions in the tryout
+      required:
+        - id
+        - title
+        - subject
+        - start_date
+        - end_date
+        - duration
+        - difficulty
+        - participants
+
+    TryoutFormValues:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the tryout
+        subject:
+          type: string
+          description: Subject of the tryout
+        start_date:
+          type: string
+          format: date-time
+          description: Start date and time of the tryout
+        end_date:
+          type: string
+          format: date-time
+          description: End date and time of the tryout
+        duration:
+          type: integer
+          description: Duration of the tryout in minutes, null for unlimited
+        difficulty:
+          type: string
+          enum: [Mudah, Menengah, Sulit]
+          description: Difficulty level of the tryout
+        syllabus:
+          type: array
+          items:
+            type: string
+          description: List of topics covered in the tryout
+        features:
+          type: array
+          items:
+            type: string
+          description: List of features of the tryout
+        description:
+          type: string
+          nullable: true
+          description: Description of the tryout
+      required:
+        - title
+        - subject
+        - start_date
+        - end_date
+        - difficulty
+
+    Question:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the question
+        tryout_id:
+          type: integer
+          description: ID of the tryout this question belongs to
+        question_text:
+          type: string
+          description: The question text
+        question_type:
+          type: string
+          enum: [multiple_choice, essay, true_false]
+          description: Type of the question
+        options:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: List of options for multiple choice questions
+        correct_answer:
+          type: string
+          description: The correct answer
+        explanation:
+          type: string
+          nullable: true
+          description: Explanation for the answer
+        points:
+          type: integer
+          description: Points awarded for this question
+        order_number:
+          type: integer
+          description: Order of the question in the tryout
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Creation date of the question
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last update date of the question
+      required:
+        - id
+        - tryout_id
+        - question_text
+        - question_type
+        - correct_answer
+        - points
+        - order_number
+
+    QuestionFormValues:
+      type: object
+      properties:
+        question_text:
+          type: string
+          description: The question text
+        question_type:
+          type: string
+          enum: [multiple_choice, essay, true_false]
+          description: Type of the question
+        options:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: List of options for multiple choice questions
+        correct_answer:
+          type: string
+          description: The correct answer
+        explanation:
+          type: string
+          nullable: true
+          description: Explanation for the answer
+        points:
+          type: integer
+          description: Points awarded for this question
+        order_number:
+          type: integer
+          nullable: true
+          description: Order of the question in the tryout
+      required:
+        - question_text
+        - question_type
+        - correct_answer
+        - points
+
+    TryoutWithQuestions:
+      allOf:
+        - $ref: '#/components/schemas/Tryout'
+        - type: object
+          properties:
+            questions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Question'
+              nullable: true
+              description: List of questions in the tryout
+
+    UserAnswer:
+      type: object
+      properties:
+        questionId:
+          type: integer
+          description: ID of the question
+        answeredOption:
+          type: string
+          nullable: true
+          description: Selected option for multiple choice or true/false questions
+        essayAnswer:
+          type: string
+          nullable: true
+          description: Answer for essay questions
+        isCorrect:
+          type: boolean
+          description: Whether the answer is correct
+        flagged:
+          type: boolean
+          nullable: true
+          description: Whether the question was flagged by the user
+      required:
+        - questionId
+        - isCorrect
+
+    TryoutSubmission:
+      type: object
+      properties:
+        tryout_id:
+          type: integer
+          description: ID of the tryout
+        user_id:
+          type: string
+          description: ID of the user taking the tryout
+        start_time:
+          type: string
+          format: date-time
+          description: When the user started the tryout
+        end_time:
+          type: string
+          format: date-time
+          description: When the user finished the tryout
+        time_taken_seconds:
+          type: integer
+          description: Total time taken in seconds
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              question_id:
+                type: integer
+                description: ID of the question
+              selected_option:
+                type: string
+                nullable: true
+                description: Selected option for multiple choice or true/false questions
+              essay_answer:
+                type: string
+                nullable: true
+                description: Answer for essay questions
+              flagged:
+                type: boolean
+                nullable: true
+                description: Whether the question was flagged by the user
+            required:
+              - question_id
+      required:
+        - tryout_id
+        - user_id
+        - start_time
+        - end_time
+        - time_taken_seconds
+        - answers
+
+    TryoutResults:
+      type: object
+      properties:
+        tryout:
+          $ref: '#/components/schemas/TryoutWithQuestions'
+          description: The tryout that was taken
+        userAnswers:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAnswer'
+          description: List of user answers
+        score:
+          type: number
+          description: The score achieved
+        maxScore:
+          type: number
+          description: Maximum possible score
+        percentageScore:
+          type: number
+          description: Percentage score
+        startTime:
+          type: string
+          format: date-time
+          description: When the user started the tryout
+        endTime:
+          type: string
+          format: date-time
+          description: When the user finished the tryout
+        timeTaken:
+          type: integer
+          description: Total time taken in seconds
+        answeredCorrectly:
+          type: integer
+          description: Number of questions answered correctly
+        answeredWrong:
+          type: integer
+          description: Number of questions answered incorrectly
+        unanswered:
+          type: integer
+          description: Number of questions not answered
+      required:
+        - tryout
+        - userAnswers
+        - score
+        - maxScore
+        - percentageScore
+        - startTime
+        - endTime
+        - timeTaken
+        - answeredCorrectly
+        - answeredWrong
+        - unanswered
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Error message
+        status:
+          type: integer
+          nullable: true
+          description: HTTP status code
+      required:
+        - message

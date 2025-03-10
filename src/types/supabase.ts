@@ -1,4 +1,3 @@
-// File: types/supabase.ts
 export type Database = {
   public: {
     Tables: {
@@ -10,7 +9,6 @@ export type Database = {
           start_date: string; // ISO string format for timestamp
           end_date: string; // ISO string format for timestamp
           duration: number;
-          total_questions: number;
           difficulty: 'Mudah' | 'Menengah' | 'Sulit';
           participants: number;
           syllabus: string[];
@@ -25,7 +23,6 @@ export type Database = {
           start_date: string;
           end_date: string;
           duration: number;
-          total_questions: number;
           difficulty: 'Mudah' | 'Menengah' | 'Sulit';
           participants?: number;
           syllabus?: string[];
@@ -40,11 +37,51 @@ export type Database = {
           start_date?: string;
           end_date?: string;
           duration?: number;
-          total_questions?: number;
           difficulty?: 'Mudah' | 'Menengah' | 'Sulit';
           participants?: number;
           syllabus?: string[];
           features?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      questions: {
+        Row: {
+          id: number;
+          tryout_id: number;
+          question_text: string;
+          question_type: 'multiple_choice' | 'essay' | 'true_false';
+          options?: string[]; // Array of options for multiple choice
+          correct_answer: string;
+          explanation?: string;
+          points: number;
+          order_number: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Insert: {
+          id?: number;
+          tryout_id: number;
+          question_text: string;
+          question_type: 'multiple_choice' | 'essay' | 'true_false';
+          options?: string[];
+          correct_answer: string;
+          explanation?: string;
+          points?: number;
+          order_number?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          tryout_id?: number;
+          question_text?: string;
+          question_type?: 'multiple_choice' | 'essay' | 'true_false';
+          options?: string[];
+          correct_answer?: string;
+          explanation?: string;
+          points?: number;
+          order_number?: number;
           created_at?: string;
           updated_at?: string;
         };

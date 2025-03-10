@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,6 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { supabase } from "@/utils/supabase/client";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import toast from "react-hot-toast";
 import {
@@ -50,46 +48,29 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { format } from "date-fns";
 import LoadingAnimation from "@/components/LoadingAnimation";
-
-// Import TryoutForm component for creating and editing tryouts
 import TryoutForm, { TryoutFormValues } from "@/components/TryoutForm";
-
-// TypeScript interface defining the structure of a tryout object
-interface Tryout {
-  id: number;
-  title: string;
-  subject: string;
-  start_date: string;
-  end_date: string;
-  duration: number;
-  total_questions: number;
-  difficulty: "Mudah" | "Menengah" | "Sulit";
-  participants: number;
-  syllabus: string[];
-  features: string[];
-  description?: string;
-  image_url?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// Custom error type for structured error handling
-type FetchError = {
-  message: string;
-  status?: number;
-};
+import MulaiTryoutButton from "@/components/MulaiTryoutButton";
+import { 
+  fetchTryouts, 
+  addTryout,
+  updateTryout, 
+  deleteTryout, 
+  formatDate, 
+  Tryout, 
+  DashboardError, 
+  getDifficultyVariant 
+} from "@/services/dashboard";
 
 export default function TryoutDashboard() {
   const router = useRouter();
   // State for storing and managing tryout data
   const [tryouts, setTryouts] = useState<Tryout[] | null>(null);
-  const [error, setError] = useState<FetchError | null>(null);
+  const [error, setError] = useState<DashboardError | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
   const [selectedTryout, setSelectedTryout] = useState<Tryout | null>(null);
-  
+
   // Dialog control states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
@@ -102,7 +83,6 @@ export default function TryoutDashboard() {
     start_date: undefined,
     end_date: undefined,
     duration: 60,
-    total_questions: 0,
     difficulty: "Menengah" as const,
     participants: 0,
     syllabus: [],
@@ -112,35 +92,25 @@ export default function TryoutDashboard() {
 
   // Fetch tryout data when component mounts
   useEffect(() => {
-    fetchTryouts();
+    loadTryouts();
   }, []);
 
-  // Function to fetch tryout data from Supabase
-  async function fetchTryouts() {
+  // Function to load tryouts using dashboard service
+  async function loadTryouts() {
     setLoading(true);
     try {
-      // Query Supabase for tryout data, ordering by start date
-      const { data, error } = await supabase
-        .from("tryouts")
-        .select("*")
-        .order("start_date", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching tryouts:", error);
-        setError({
-          message: error.message,
-          // Set appropriate error status based on error code
-          status: error.code === "PGRST116" ? 404 : 500,
-        });
+      const { tryouts: fetchedTryouts, error: fetchError } = await fetchTryouts();
+      
+      if (fetchError) {
+        setError(fetchError);
         setTryouts(null);
       } else {
-        setTryouts(data);
+        setTryouts(fetchedTryouts);
         setError(null);
       }
     } catch (err) {
-      console.error("Unexpected error fetching tryouts:", err);
-      const message =
-        err instanceof Error ? err.message : "Unknown error occurred";
+      console.error("Unexpected error in loadTryouts:", err);
+      const message = err instanceof Error ? err.message : "Unknown error occurred";
       setError({ message });
       setTryouts(null);
     } finally {
@@ -169,117 +139,64 @@ export default function TryoutDashboard() {
     setIsDeleteDialogOpen(true);
   };
 
-  // Format ISO date string to human-readable format
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return format(date, "dd MMMM yyyy");
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return dateString;
-    }
-  };
-
-  // Add a new tryout to the database
+  // Handle adding a new tryout
   const handleAddTryout = async (formData: TryoutFormValues) => {
     try {
-      // Prepare tryout data for database insertion
-      const newTryout = {
-        ...formData,
-        participants: 0, // Initialize with zero participants
-        // Handle null duration case
-        duration: formData.duration === null ? -1 : formData.duration,
-        // Convert JavaScript Date objects to ISO strings for database
-        start_date: formData.start_date.toISOString(),
-        end_date: formData.end_date.toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      // Insert new tryout into Supabase
-      const { data, error } = await supabase
-        .from("tryouts")
-        .insert([newTryout])
-        .select();
-
-      if (error) {
-        throw error;
+      const result = await addTryout(formData);
+      
+      if (result) {
+        toast.success("Tryout baru telah ditambahkan");
+        setIsAddDialogOpen(false);
+        loadTryouts();
+        return result;
+      } else {
+        toast.error("Gagal menambahkan tryout");
+        return undefined;
       }
-
-      // Show success message and refresh data
-      toast.success("Tryout baru telah ditambahkan");
-      setIsAddDialogOpen(false);
-      fetchTryouts();
     } catch (error: any) {
-      // Display error message to user
-      toast.error(
-        `Error: ${error.message || "Terjadi kesalahan saat menambahkan tryout"}`
-      );
+      toast.error(`Error: ${error.message || "Terjadi kesalahan saat menambahkan tryout"}`);
+      return undefined;
     }
   };
 
-  // Update an existing tryout in the database
+  // Handle updating an existing tryout
   const handleUpdateTryout = async (formData: TryoutFormValues) => {
-    if (!selectedTryout) return;
+    if (!selectedTryout) return undefined;
 
     try {
-      // Prepare tryout data for database update
-      const updatedTryout = {
-        ...formData,
-        // Handle null duration case
-        duration: formData.duration === null ? -1 : formData.duration,
-        // Convert JavaScript Date objects to ISO strings for database
-        start_date: formData.start_date.toISOString(),
-        end_date: formData.end_date.toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      // Update tryout in Supabase
-      const { error } = await supabase
-        .from("tryouts")
-        .update(updatedTryout)
-        .eq("id", selectedTryout.id);
-
-      if (error) {
-        throw error;
+      const result = await updateTryout(selectedTryout.id, formData);
+      
+      if (result) {
+        toast.success("Tryout telah diperbarui");
+        setIsEditDialogOpen(false);
+        loadTryouts();
+        return result;
+      } else {
+        toast.error("Gagal memperbarui tryout");
+        return undefined;
       }
-
-      // Show success message and refresh data
-      toast.success("Tryout telah diperbarui");
-      setIsEditDialogOpen(false);
-      fetchTryouts();
     } catch (error: any) {
-      // Display error message to user
-      toast.error(
-        `Error: ${error.message || "Terjadi kesalahan saat memperbarui tryout"}`
-      );
+      toast.error(`Error: ${error.message || "Terjadi kesalahan saat memperbarui tryout"}`);
+      return undefined;
     }
   };
 
-  // Delete a tryout from the database
+  // Handle deleting a tryout
   const handleDeleteTryout = async () => {
     if (!selectedTryout) return;
 
     try {
-      // Delete tryout from Supabase
-      const { error } = await supabase
-        .from("tryouts")
-        .delete()
-        .eq("id", selectedTryout.id);
-
-      if (error) {
-        throw error;
+      const success = await deleteTryout(selectedTryout.id);
+      
+      if (success) {
+        toast.success("Tryout telah dihapus");
+        setIsDeleteDialogOpen(false);
+        loadTryouts();
+      } else {
+        toast.error("Gagal menghapus tryout");
       }
-
-      // Show success message and refresh data
-      toast.success("Tryout telah dihapus");
-      setIsDeleteDialogOpen(false);
-      fetchTryouts();
     } catch (error: any) {
-      // Display error message to user
-      toast.error(
-        `Error: ${error.message || "Terjadi kesalahan saat menghapus tryout"}`
-      );
+      toast.error(`Error: ${error.message || "Terjadi kesalahan saat menghapus tryout"}`);
     }
   };
 
@@ -387,7 +304,7 @@ export default function TryoutDashboard() {
                 {/* Tryout image section */}
                 <div className="relative w-full h-48 overflow-hidden">
                   <Image
-                    src={"/TX.png"}
+                    src={tryout.image_url || "/TX.png"}
                     alt={tryout.title}
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -400,13 +317,7 @@ export default function TryoutDashboard() {
                     <CardTitle className="text-xl">{tryout.title}</CardTitle>
                     {/* Difficulty badge with conditional styling */}
                     <Badge
-                      variant={
-                        tryout.difficulty === "Sulit"
-                          ? "sulit"
-                          : tryout.difficulty === "Menengah"
-                          ? "menengah"
-                          : "mudah"
-                      }
+                      variant={getDifficultyVariant(tryout.difficulty)}
                     >
                       {tryout.difficulty}
                     </Badge>
@@ -434,7 +345,7 @@ export default function TryoutDashboard() {
                     </div>
                     <div className="flex items-center text-sm">
                       <BookOpenIcon className="mr-2 h-4 w-4 text-blue-500" />
-                      <span>{tryout.total_questions} Pertanyaan</span>
+                      <span>{tryout.total_questions || 0} Pertanyaan</span>
                     </div>
                     <div className="flex items-center text-sm">
                       <Users className="mr-2 h-4 w-4 text-blue-500" />
@@ -493,11 +404,11 @@ export default function TryoutDashboard() {
                       <DialogHeader>
                         <DialogTitle>Edit Tryout</DialogTitle>
                         <DialogDescription>
-                          Perbarui informasi tryout. Klik simpan untuk
-                          menyimpan perubahan.
+                          Perbarui informasi tryout. Klik simpan untuk menyimpan
+                          perubahan.
                         </DialogDescription>
                       </DialogHeader>
-                      
+
                       {/* TryoutForm component for editing existing tryout */}
                       {selectedTryout && (
                         <TryoutForm
@@ -510,7 +421,6 @@ export default function TryoutDashboard() {
                               selectedTryout.duration === -1
                                 ? 60
                                 : selectedTryout.duration,
-                            total_questions: selectedTryout.total_questions,
                             difficulty: selectedTryout.difficulty,
                             participants: selectedTryout.participants,
                             syllabus: selectedTryout.syllabus || [],
@@ -569,17 +479,12 @@ export default function TryoutDashboard() {
                   </AlertDialog>
 
                   {/* Start Tryout Button */}
-                  <Button 
+                  <MulaiTryoutButton
                     className="flex-1"
-                    onClick={() => {
-                      setIsNavigating(true);
-                      setTimeout(() => {
-                        router.push(`/tryout/${tryout.id}`);
-                      }, 100);
-                    }}
-                  >
-                    Mulai Tryout
-                  </Button>
+                    tryoutId={tryout.id}
+                    startDate={tryout.start_date}
+                    endDate={tryout.end_date}
+                  />
                 </CardFooter>
               </Card>
             ))}

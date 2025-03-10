@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -30,7 +31,7 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 
-// Define Zod schema for form validation
+// Define Zod schema for form validation - removed total_questions
 const tryoutFormSchema = z.object({
   title: z.string().min(1, { message: "Judul tryout harus diisi" }),
   subject: z.string().min(1, { message: "Mata pelajaran harus diisi" }),
@@ -43,7 +44,6 @@ const tryoutFormSchema = z.object({
   duration: z.number()
     .min(1, { message: "Durasi minimal 1 menit" })
     .max(1440, { message: "Durasi maksimal 1440 menit (24 jam)" }),
-  total_questions: z.number().min(1, { message: "Jumlah soal minimal 1" }),
   difficulty: z.enum(["Mudah", "Menengah", "Sulit"], {
     message: "Pilih tingkat kesulitan yang valid",
   }),
@@ -58,11 +58,12 @@ export type TryoutFormValues = z.infer<typeof tryoutFormSchema>
 
 interface TryoutFormProps {
   defaultValues: Partial<TryoutFormValues>;
-  onSubmit: (values: TryoutFormValues) => void;
+  onSubmit: (values: TryoutFormValues) => Promise<{id: string} | undefined>;
   isEdit?: boolean;
 }
 
 export default function TryoutForm({ defaultValues, onSubmit, isEdit = false }: TryoutFormProps) {
+  const router = useRouter();
   const [syllabusItems, setSyllabusItems] = useState<string[]>(defaultValues.syllabus || []);
   const [featureItems, setFeatureItems] = useState<string[]>(defaultValues.features || []);
   const [syllabusInput, setSyllabusInput] = useState("");
@@ -108,7 +109,6 @@ export default function TryoutForm({ defaultValues, onSubmit, isEdit = false }: 
       start_date: undefined,
       end_date: undefined,
       duration: 60,
-      total_questions: 1,
       difficulty: "Mudah",
       participants: 0,
       syllabus: [],
@@ -178,7 +178,7 @@ export default function TryoutForm({ defaultValues, onSubmit, isEdit = false }: 
   };
 
   // Form submission handler
-  const handleSubmit = (values: TryoutFormValues) => {
+  const handleSubmit = async (values: TryoutFormValues) => {
     // Make sure the form has the latest syllabus and features arrays
     values.syllabus = syllabusItems;
     values.features = featureItems;
@@ -206,7 +206,17 @@ export default function TryoutForm({ defaultValues, onSubmit, isEdit = false }: 
         : { created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     };
     
-    onSubmit(finalValues as TryoutFormValues);
+    // Submit form and wait for response
+    try {
+      const result = await onSubmit(finalValues as TryoutFormValues);
+      
+      // If result exists and has an id, redirect to edit page
+      if (result && result.id) {
+        router.push(`/tryout/edit/${result.id}`);
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+    }
   }
 
   return (
@@ -377,50 +387,30 @@ export default function TryoutForm({ defaultValues, onSubmit, isEdit = false }: 
 
           <FormField
             control={form.control}
-            name="total_questions"
+            name="difficulty"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Jumlah Soal</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number"
-                    {...field} 
-                    onChange={(e) => field.onChange(Number(e.target.value) || 1)}
-                  />
-                </FormControl><FormDescription>
-                *Maks 100
-              </FormDescription>
+                <FormLabel>Tingkat Kesulitan</FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih tingkat kesulitan" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Mudah">Mudah</SelectItem>
+                    <SelectItem value="Menengah">Menengah</SelectItem>
+                    <SelectItem value="Sulit">Sulit</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
-
-        <FormField
-          control={form.control}
-          name="difficulty"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tingkat Kesulitan</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih tingkat kesulitan" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Mudah">Mudah</SelectItem>
-                  <SelectItem value="Menengah">Menengah</SelectItem>
-                  <SelectItem value="Sulit">Sulit</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         {/* Syllabus field - expandable array */}
         <FormField

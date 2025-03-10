@@ -1,4 +1,3 @@
-// components/LoadingAnimation.tsx
 import React from 'react';
 
 const LoadingAnimation: React.FC = () => {
