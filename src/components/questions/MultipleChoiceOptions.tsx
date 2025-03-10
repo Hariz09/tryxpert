@@ -2,10 +2,33 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Plus, X } from 'lucide-react';
 
-// Multiple Choice Options Component
+// Simple custom radio button component
+const RadioButton = ({ 
+  checked, 
+  onChange, 
+  disabled = false 
+}: { 
+  checked: boolean; 
+  onChange: () => void; 
+  disabled?: boolean 
+}) => {
+  return (
+    <div 
+      className={`h-5 w-5 rounded-full border-2 flex items-center justify-center cursor-pointer
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        ${checked ? 'border-primary' : 'border-gray-300'}`}
+      onClick={() => !disabled && onChange()}
+    >
+      {checked && (
+        <div className="h-2.5 w-2.5 rounded-full bg-primary"></div>
+      )}
+    </div>
+  );
+};
+
+// Multiple Choice Options Component with custom radio buttons
 const MultipleChoiceOptions = ({ 
   options, 
   correctAnswer, 
@@ -60,13 +83,11 @@ const MultipleChoiceOptions = ({
       
       {options.map((option, index) => (
         <div key={index} className="flex items-center space-x-2">
-          <RadioGroup 
-            value={correctAnswer || ''} 
-            onValueChange={onCorrectAnswerChange}
-            className="flex items-center"
-          >
-            <RadioGroupItem value={option || ''} id={`option-${index}`} />
-          </RadioGroup>
+          <RadioButton
+            checked={option === correctAnswer && option.trim() !== ''}
+            onChange={() => option.trim() !== '' && onCorrectAnswerChange(option)}
+            disabled={option.trim() === ''}
+          />
           <Input 
             value={option}
             onChange={(e) => updateOption(index, e.target.value)}

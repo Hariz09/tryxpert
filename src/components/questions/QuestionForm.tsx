@@ -191,21 +191,43 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
           )}
         />
         
-        {watchQuestionType === 'multiple_choice' && (
-          <>
-            <MultipleChoiceOptions 
-              options={watchOptions}
-              correctAnswer={form.getValues('correct_answer')}
-              onChange={(options) => form.setValue('options', options, { shouldValidate: true })}
-              onCorrectAnswerChange={(answer) => form.setValue('correct_answer', answer)}
-            />
-            {form.formState.errors.options && (
-              <p className="text-sm font-medium text-destructive">
-                {form.formState.errors.options.message}
-              </p>
-            )}
-          </>
-        )}
+        // Updated section for the MultipleChoiceOptions in QuestionForm.tsx
+
+{watchQuestionType === 'multiple_choice' && (
+  <>
+    <FormField
+      control={form.control}
+      name="options"
+      render={({ field }) => (
+        <FormItem>
+          <MultipleChoiceOptions 
+            options={field.value || []}
+            correctAnswer={form.getValues('correct_answer') || ''}
+            onChange={(options) => {
+              field.onChange(options);
+              // Make sure options are updated first before validating
+              setTimeout(() => form.trigger('options'), 0);
+            }}
+            onCorrectAnswerChange={(answer) => {
+              form.setValue('correct_answer', answer, { 
+                shouldValidate: true,
+                shouldDirty: true,
+                shouldTouch: true
+              });
+            }}
+          />
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+    
+    {form.formState.errors.options && (
+      <p className="text-sm font-medium text-destructive">
+        {form.formState.errors.options.message}
+      </p>
+    )}
+  </>
+)}
         
         {watchQuestionType === 'true_false' && (
           <FormField
