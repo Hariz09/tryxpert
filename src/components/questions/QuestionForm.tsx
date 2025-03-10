@@ -190,8 +190,6 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
             </FormItem>
           )}
         />
-        
-        // Updated section for the MultipleChoiceOptions in QuestionForm.tsx
 
 {watchQuestionType === 'multiple_choice' && (
   <>
