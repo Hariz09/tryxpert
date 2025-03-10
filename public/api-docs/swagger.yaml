@@ -46,6 +46,11 @@ paths:
             type: string
             enum: [notStarted, inProgress, ended]
           description: Filter tryouts by status
+        - name: title
+          in: query
+          schema:
+            type: string
+          description: Filter tryouts by title (partial matching)
       responses:
         '200':
           description: A list of tryouts

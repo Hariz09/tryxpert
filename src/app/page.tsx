@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,10 +23,28 @@ import {
   Plus,
   Trash2,
   CheckCircle,
+  Search,
+  Filter,
+  X,
+  Clock,
+  CheckCircle2,
+  TimerOff,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 import toast from "react-hot-toast";
 import {
   Dialog,
@@ -59,22 +77,35 @@ import {
   formatDate, 
   Tryout, 
   DashboardError, 
-  getDifficultyVariant 
+  getDifficultyVariant,
+  getTryoutStatus
 } from "@/services/dashboard";
 
 export default function TryoutDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
   // State for storing and managing tryout data
   const [tryouts, setTryouts] = useState<Tryout[] | null>(null);
+  const [filteredTryouts, setFilteredTryouts] = useState<Tryout[] | null>(null);
   const [error, setError] = useState<DashboardError | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
   const [selectedTryout, setSelectedTryout] = useState<Tryout | null>(null);
 
+  // Filter states
+  const [searchTitle, setSearchTitle] = useState<string>("");
+  const [selectedSubject, setSelectedSubject] = useState<string>("all");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+
   // Dialog control states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+  const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState<boolean>(false);
 
   // Default values for new tryout form
   const defaultValues: Partial<TryoutFormValues> = {
@@ -90,10 +121,103 @@ export default function TryoutDashboard() {
     description: "",
   };
 
+  // Load URL parameters
+  useEffect(() => {
+    const title = searchParams.get("title") || "";
+    const subject = searchParams.get("subject") || "";
+    const dateParam = searchParams.get("date");
+    
+    setSearchTitle(title);
+    setSelectedSubject(subject);
+    setSelectedDate(dateParam ? new Date(dateParam) : undefined);
+  }, [searchParams]);
+
   // Fetch tryout data when component mounts
   useEffect(() => {
     loadTryouts();
   }, []);
+
+  // Apply filters whenever tryouts or filter values change
+  useEffect(() => {
+    if (!tryouts) return;
+    
+    // Extract unique subjects for the subject filter dropdown
+    if (tryouts.length > 0) {
+      const subjects = Array.from(new Set(tryouts.map(tryout => tryout.subject)));
+      setAvailableSubjects(subjects);
+    }
+    
+    applyFilters();
+  }, [tryouts, searchTitle, selectedSubject, selectedDate, selectedDifficulty, selectedStatus]);
+
+  // Apply filters to tryouts
+  const applyFilters = () => {
+    if (!tryouts) return;
+    
+    let result = [...tryouts];
+    
+    // Filter by title
+    if (searchTitle) {
+      result = result.filter(tryout => 
+        tryout.title.toLowerCase().includes(searchTitle.toLowerCase())
+      );
+    }
+    
+    // Filter by subject (skip filtering if "all" is selected)
+    if (selectedSubject && selectedSubject !== 'all') {
+      result = result.filter(tryout => tryout.subject === selectedSubject);
+    }
+    
+    // Filter by difficulty (skip filtering if "all" is selected)
+    if (selectedDifficulty && selectedDifficulty !== 'all') {
+      result = result.filter(tryout => tryout.difficulty === selectedDifficulty);
+    }
+    
+    // Filter by status (skip filtering if "all" is selected)
+    if (selectedStatus && selectedStatus !== 'all') {
+      result = result.filter(tryout => {
+        const status = getTryoutStatus(tryout.start_date, tryout.end_date);
+        return status === selectedStatus;
+      });
+    }
+    
+    // Filter by date
+    if (selectedDate) {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      result = result.filter(tryout => {
+        const startDate = new Date(tryout.start_date).toISOString().split('T')[0];
+        const endDate = new Date(tryout.end_date).toISOString().split('T')[0];
+        
+        return dateStr >= startDate && dateStr <= endDate;
+      });
+    }
+    
+    setFilteredTryouts(result);
+  };
+
+  // Update URL with filter parameters
+  const updateUrlParams = () => {
+    const params = new URLSearchParams();
+    
+    if (searchTitle) params.set("title", searchTitle);
+    if (selectedSubject && selectedSubject !== 'all') params.set("subject", selectedSubject);
+    if (selectedDifficulty && selectedDifficulty !== 'all') params.set("difficulty", selectedDifficulty);
+    if (selectedStatus && selectedStatus !== 'all') params.set("status", selectedStatus);
+    if (selectedDate) params.set("date", format(selectedDate, 'yyyy-MM-dd'));
+    
+    router.push(`?${params.toString()}`);
+    setIsFilterPopoverOpen(false);
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchTitle("");
+    setSelectedSubject("all");
+    setSelectedDifficulty("all");
+    setSelectedStatus("all");
+    setSelectedDate(undefined);
+    router.push(""); // Remove all query parameters
+  };
 
   // Function to load tryouts using dashboard service
   async function loadTryouts() {
@@ -104,8 +228,10 @@ export default function TryoutDashboard() {
       if (fetchError) {
         setError(fetchError);
         setTryouts(null);
+        setFilteredTryouts(null);
       } else {
         setTryouts(fetchedTryouts);
+        setFilteredTryouts(fetchedTryouts);
         setError(null);
       }
     } catch (err) {
@@ -113,6 +239,7 @@ export default function TryoutDashboard() {
       const message = err instanceof Error ? err.message : "Unknown error occurred";
       setError({ message });
       setTryouts(null);
+      setFilteredTryouts(null);
     } finally {
       setLoading(false);
     }
@@ -207,48 +334,323 @@ export default function TryoutDashboard() {
       <Navbar />
 
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div className="text-center">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+          <div className="text-center md:text-left">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
               Selamat Datang di TryXpert
             </h1>
           </div>
 
-          {/* Add Tryout Button and Dialog */}
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                <span>Tambah Tryout</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Tambah Tryout Baru</DialogTitle>
-                <DialogDescription>
-                  Masukkan informasi untuk tryout baru. Klik simpan saat
-                  selesai.
-                </DialogDescription>
-              </DialogHeader>
-
-              {/* TryoutForm component for creating new tryouts */}
-              <TryoutForm
-                defaultValues={defaultValues}
-                onSubmit={handleAddTryout}
-                isEdit={false}
+          <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
+            {/* Search input */}
+            <div className="relative flex-grow">
+              <Input
+                type="text"
+                placeholder="Cari tryout..."
+                value={searchTitle}
+                onChange={(e) => {
+                  setSearchTitle(e.target.value);
+                  // Update URL without waiting for the apply button
+                  const params = new URLSearchParams(searchParams.toString());
+                  if (e.target.value) {
+                    params.set("title", e.target.value);
+                  } else {
+                    params.delete("title");
+                  }
+                  router.push(`?${params.toString()}`);
+                }}
+                className="pl-10"
               />
-
-              <DialogFooter className="mt-4">
+              <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-3" />
+              {searchTitle && (
                 <Button
-                  variant="outline"
-                  onClick={() => setIsAddDialogOpen(false)}
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1 h-7 w-7 p-0"
+                  onClick={() => {
+                    setSearchTitle("");
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.delete("title");
+                    router.push(`?${params.toString()}`);
+                  }}
                 >
-                  Batal
+                  <X className="h-4 w-4" />
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              )}
+            </div>
+
+            {/* Filter button with popover */}
+            <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Filter className="h-4 w-4" />
+                  <span>Filter</span>
+                  {((selectedSubject && selectedSubject !== 'all') || 
+                    (selectedDifficulty && selectedDifficulty !== 'all') || 
+                    (selectedStatus && selectedStatus !== 'all') || 
+                    selectedDate) && (
+                    <Badge variant="secondary" className="ml-1">
+                      {(selectedSubject && selectedSubject !== 'all' ? 1 : 0) + 
+                       (selectedDifficulty && selectedDifficulty !== 'all' ? 1 : 0) + 
+                       (selectedStatus && selectedStatus !== 'all' ? 1 : 0) + 
+                       (selectedDate ? 1 : 0)}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="space-y-4">
+                  <h4 className="font-medium">Filter Tryout</h4>
+                  
+                  {/* Subject filter */}
+                  <div className="space-y-2">
+                    <Label htmlFor="subject">Subjek</Label>
+                    <Select 
+                      value={selectedSubject} 
+                      onValueChange={setSelectedSubject}
+                    >
+                      <SelectTrigger id="subject">
+                        <SelectValue placeholder="Pilih subjek" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Subjek</SelectItem>
+                        {availableSubjects.map((subject) => (
+                          <SelectItem key={subject} value={subject}>
+                            {subject}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Difficulty filter */}
+                  <div className="space-y-2">
+                    <Label htmlFor="difficulty">Tingkat Kesulitan</Label>
+                    <Select 
+                      value={selectedDifficulty} 
+                      onValueChange={setSelectedDifficulty}
+                    >
+                      <SelectTrigger id="difficulty">
+                        <SelectValue placeholder="Pilih tingkat kesulitan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Tingkat</SelectItem>
+                        <SelectItem value="Mudah">Mudah</SelectItem>
+                        <SelectItem value="Menengah">Menengah</SelectItem>
+                        <SelectItem value="Sulit">Sulit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Status filter */}
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Select 
+                      value={selectedStatus} 
+                      onValueChange={setSelectedStatus}
+                    >
+                      <SelectTrigger id="status">
+                        <SelectValue placeholder="Pilih status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Status</SelectItem>
+                        <SelectItem value="inProgress">Sedang Berlangsung</SelectItem>
+                        <SelectItem value="ended">Telah Berakhir</SelectItem>
+                        <SelectItem value="notStarted">Akan Datang</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Date filter */}
+                  <div className="space-y-2">
+                    <Label>Tanggal</Label>
+                    <div className="border rounded-md p-1">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        className="rounded-md border w-full"
+                      />
+                    </div>
+                    {selectedDate && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <span>{format(selectedDate, "PPP")}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto h-8 w-8 p-0"
+                          onClick={() => setSelectedDate(undefined)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="text-destructive"
+                    >
+                      Reset
+                    </Button>
+                    <Button size="sm" onClick={updateUrlParams}>
+                      Terapkan Filter
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Add Tryout Button */}
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  <span>Tambah Tryout</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Tambah Tryout Baru</DialogTitle>
+                  <DialogDescription>
+                    Masukkan informasi untuk tryout baru. Klik simpan saat
+                    selesai.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {/* TryoutForm component for creating new tryouts */}
+                <TryoutForm
+                  defaultValues={defaultValues}
+                  onSubmit={handleAddTryout}
+                  isEdit={false}
+                />
+
+                <DialogFooter className="mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsAddDialogOpen(false)}
+                  >
+                    Batal
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
+
+        {/* Active filters summary */}
+        {(searchTitle || (selectedSubject && selectedSubject !== 'all') || (selectedDifficulty && selectedDifficulty !== 'all') || (selectedStatus && selectedStatus !== 'all') || selectedDate) && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {searchTitle && (
+              <Badge variant="outline" className="pl-2 pr-1 py-1">
+                <span>Judul: {searchTitle}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 ml-1"
+                  onClick={() => {
+                    setSearchTitle("");
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.delete("title");
+                    router.push(`?${params.toString()}`);
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            {selectedSubject && selectedSubject !== 'all' && (
+              <Badge variant="outline" className="pl-2 pr-1 py-1">
+                <span>Subjek: {selectedSubject}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 ml-1"
+                  onClick={() => {
+                    setSelectedSubject("all");
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.delete("subject");
+                    router.push(`?${params.toString()}`);
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            {selectedDifficulty && selectedDifficulty !== 'all' && (
+              <Badge variant="outline" className="pl-2 pr-1 py-1">
+                <span>Kesulitan: {selectedDifficulty}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 ml-1"
+                  onClick={() => {
+                    setSelectedDifficulty("all");
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.delete("difficulty");
+                    router.push(`?${params.toString()}`);
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            {selectedStatus && selectedStatus !== 'all' && (
+              <Badge variant="outline" className="pl-2 pr-1 py-1">
+                <span>Status: {
+                  selectedStatus === 'inProgress' ? 'Sedang Berlangsung' : 
+                  selectedStatus === 'ended' ? 'Telah Berakhir' : 
+                  'Akan Datang'
+                }</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 ml-1"
+                  onClick={() => {
+                    setSelectedStatus("all");
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.delete("status");
+                    router.push(`?${params.toString()}`);
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            {selectedDate && (
+              <Badge variant="outline" className="pl-2 pr-1 py-1">
+                <span>Tanggal: {format(selectedDate, "dd MMM yyyy")}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 ml-1"
+                  onClick={() => {
+                    setSelectedDate(undefined);
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.delete("date");
+                    router.push(`?${params.toString()}`);
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            {(searchTitle || (selectedSubject && selectedSubject !== 'all') || (selectedDifficulty && selectedDifficulty !== 'all') || (selectedStatus && selectedStatus !== 'all') || selectedDate) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-muted-foreground"
+                onClick={clearFilters}
+              >
+                Reset semua
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Display error alert if fetch fails */}
         {error && (
@@ -286,17 +688,33 @@ export default function TryoutDashboard() {
               </Card>
             ))}
           </div>
-        ) : !error && (!tryouts || tryouts.length === 0) ? (
-          // Show message when no tryouts are available
+        ) : !error && (!filteredTryouts || filteredTryouts.length === 0) ? (
+          // Show message when no tryouts are available or match filters
           <div className="text-center py-10">
             <p className="text-muted-foreground">
-              Tidak ada tryout yang tersedia saat ini.
+              {searchTitle || (selectedSubject && selectedSubject !== 'all') || 
+               (selectedDifficulty && selectedDifficulty !== 'all') || 
+               (selectedStatus && selectedStatus !== 'all') || selectedDate
+                ? "Tidak ada tryout yang sesuai dengan filter yang dipilih."
+                : "Tidak ada tryout yang tersedia saat ini."}
             </p>
+            
+            {searchTitle || (selectedSubject && selectedSubject !== 'all') || 
+             (selectedDifficulty && selectedDifficulty !== 'all') || 
+             (selectedStatus && selectedStatus !== 'all') || selectedDate ? (
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={clearFilters}
+              >
+                Reset Filter
+              </Button>
+            ) : null}
           </div>
         ) : (
           // Display tryout cards grid
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tryouts?.map((tryout) => (
+            {filteredTryouts?.map((tryout) => (
               <Card
                 key={tryout.id}
                 className="overflow-hidden hover:shadow-lg transition-all duration-300 border-gray-200 flex flex-col h-full"
@@ -334,6 +752,23 @@ export default function TryoutDashboard() {
                         {formatDate(tryout.start_date)} -{" "}
                         {formatDate(tryout.end_date)}
                       </span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      {(() => {
+                        const status = getTryoutStatus(tryout.start_date, tryout.end_date);
+                        return (
+                          <>
+                            {status === 'inProgress' && <Clock className="mr-2 h-4 w-4 text-green-500" />}
+                            {status === 'ended' && <TimerOff className="mr-2 h-4 w-4 text-red-500" />}
+                            {status === 'notStarted' && <CheckCircle2 className="mr-2 h-4 w-4 text-blue-500" />}
+                            <span>
+                              {status === 'inProgress' && "Sedang Berlangsung"}
+                              {status === 'ended' && "Telah Berakhir"}
+                              {status === 'notStarted' && "Akan Datang"}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center text-sm">
                       <ClockIcon className="mr-2 h-4 w-4 text-blue-500" />
