@@ -8,7 +8,7 @@ This is a project for RISTEK Open Recruitment, Web Development Level 3 (Frontend
 ## Setup
 1. Clone this repo
 ```bash
-git clone https://github.com/yourusername/tryxpert.git
+git clone [https://github.com/Hariz09/tryxpert.git](https://github.com/Hariz09/tryxpert.git)
 cd tryxpert
 ```
 
